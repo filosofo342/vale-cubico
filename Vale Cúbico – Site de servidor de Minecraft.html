@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vale Cúbico – Servidor de Minecraft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#e8edef; --surface:#d3d9dc; --text:#1c1f24; --muted:#4a525a;
+  --grass:#3f8f27; --grass-ink:#fff; --dirt:#6b4630; --gold:#c98f0a; --line:#1c1f24;
+  --sky:#8fc7ff; --sky-text:#10223a;
+  --font-display:"Silkscreen","Courier New",monospace;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1b1d22; --surface:#2a2d34; --text:#e8ebee; --muted:#a3abb4;
+    --grass:#6fc044; --grass-ink:#10200a; --dirt:#9a6a48; --gold:#f2c230; --line:#000;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1b1d22; --surface:#2a2d34; --text:#e8ebee; --muted:#a3abb4;
+  --grass:#6fc044; --grass-ink:#10200a; --dirt:#9a6a48; --gold:#f2c230; --line:#000;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);line-height:1.6;font-size:17px}
+h1,h2,h3{font-family:var(--font-display);line-height:1.15;margin:0}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+
+/* Cabeçalho */
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;max-width:960px;margin:0 auto;position:relative;z-index:2}
+.brand{font-family:var(--font-display);font-weight:700;font-size:20px;text-decoration:none;color:var(--sky-text)}
+nav{display:flex;gap:16px;font-size:15px}
+nav a{text-decoration:none;color:var(--sky-text);font-weight:600}
+nav a:hover{text-decoration:underline}
+
+/* Hero com terreno interativo */
+.hero{background:var(--sky);color:var(--sky-text);transition:background .6s,color .6s;margin-top:calc(-1 * env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px)}
+.hero[data-sky="night"]{background:#0e1630;color:#e9efff}
+.hero[data-sky="night"] .brand,.hero[data-sky="night"] nav a{color:#e9efff}
+.hero-text{padding:28px 0 20px}
+.hero h1{font-size:clamp(34px,9vw,68px);max-width:11ch;letter-spacing:.5px}
+.hero p.lead{max-width:46ch;font-size:19px;margin:16px 0 22px}
+.ip-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{font-family:var(--font-display);font-weight:700;font-size:16px;padding:14px 18px;border:4px solid var(--line);background:var(--grass);color:var(--grass-ink);cursor:pointer;box-shadow:4px 4px 0 var(--line);transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--line)}
+.btn.alt{background:var(--surface);color:var(--text)}
+.ip{font-family:var(--font-display);font-size:15px;padding:12px 14px;border:4px solid var(--line);background:rgba(255,255,255,.75);color:#10223a}
+.stage{position:relative;margin-top:8px;overflow:hidden}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:crosshair;touch-action:manipulation}
+.counter{position:absolute;right:12px;top:6px;font-family:var(--font-display);font-size:13px;background:rgba(0,0,0,.55);color:#fff;padding:6px 10px}
+.hint{font-size:14px;margin:8px 0 0;opacity:.85}
+
+/* Seções */
+section{padding:56px 0}
+section h2{font-size:clamp(24px,5vw,34px);margin-bottom:10px}
+.sub{color:var(--muted);max-width:56ch;margin:0 0 28px}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--surface);border:4px solid var(--line);padding:18px 18px 20px;box-shadow:6px 6px 0 var(--line)}
+.card h3{font-size:18px;margin:10px 0 8px}
+.card p{margin:0;color:var(--muted);font-size:16px}
+.ico{width:40px;height:40px;display:block;image-rendering:pixelated}
+.rules{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-width:62ch}
+.rules li{padding:12px 14px 12px 18px;background:var(--surface);border-left:8px solid var(--grass)}
+.rules li.no{border-left-color:#c0392b}
+.steps{counter-reset:s;list-style:none;margin:0;padding:0;display:grid;gap:14px;max-width:62ch}
+.steps li{counter-increment:s;display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start}
+.steps li::before{content:counter(s);font-family:var(--font-display);font-weight:700;font-size:22px;width:48px;height:48px;display:grid;place-items:center;background:var(--dirt);color:#fff;border:4px solid var(--line)}
+.steps b{display:block}
+.band{background:var(--dirt);color:#fff}
+.band .sub{color:#f1e3d8}
+.band .btn{background:var(--gold);color:#1c1f24}
+footer{padding:28px 20px 36px;text-align:center;color:var(--muted);font-size:14px;max-width:960px;margin:0 auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+@media (max-width:520px){nav{gap:10px;font-size:14px}.brand{font-size:17px}}
+</style>
+</head>
+<body>
+
+<div class="hero" id="hero" data-sky="day">
+  <header class="top">
+    <a class="brand" href="#topo">Vale Cúbico</a>
+    <nav aria-label="Principal">
+      <a href="#modos">Modos</a>
+      <a href="#regras">Regras</a>
+      <a href="#entrar">Entrar</a>
+    </nav>
+  </header>
+
+  <div class="wrap hero-text" id="topo">
+    <h1>Construa seu mundo</h1>
+    <p class="lead">Servidor survival em português, com economia, terrenos protegidos e eventos toda semana.</p>
+    <div class="ip-row">
+      <span class="ip" id="ip">jogar.valecubico.com.br</span>
+      <button class="btn" id="copy" type="button">Copiar IP</button>
+      <button class="btn alt" id="sky" type="button">Dia / noite</button>
+    </div>
+  </div>
+
+  <div class="wrap stage">
+    <canvas id="world" aria-label="Terreno de blocos interativo: clique para quebrar blocos"></canvas>
+    <div class="counter" id="count" aria-live="polite">Blocos: 0</div>
+  </div>
+  <div class="wrap"><p class="hint">Clique ou toque nos blocos para quebrá-los.</p></div>
+</div>
+
+<main>
+  <section id="modos">
+    <div class="wrap">
+      <h2>Modos de jogo</h2>
+      <p class="sub">Escolha como você quer jogar. Todos os modos compartilham a mesma conta e o mesmo chat.</p>
+      <div class="grid">
+        <article class="card">
+          <svg class="ico" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" fill="#6b4630"/><rect width="8" height="2" fill="#4f9a2f"/><rect x="1" y="4" width="2" height="2" fill="#4e3322"/><rect x="5" y="3" width="2" height="2" fill="#4e3322"/></svg>
+          <h3>Survival</h3>
+          <p>Colete recursos, proteja seu terreno e negocie com outros jogadores na loja do servidor.</p>
+        </article>
+        <article class="card">
+          <svg class="ico" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" fill="#8a8a8a"/><rect x="1" y="1" width="2" height="2" fill="#3cd6d0"/><rect x="5" y="4" width="2" height="2" fill="#3cd6d0"/><rect x="2" y="5" width="1" height="1" fill="#3cd6d0"/></svg>
+          <h3>Criativo</h3>
+          <p>Lotes de 64×64 blocos com todos os itens liberados para você construir sem limites.</p>
+        </article>
+        <article class="card">
+          <svg class="ico" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" fill="#c98f0a"/><rect x="1" y="1" width="6" height="6" fill="#f2c230"/><rect x="2" y="2" width="2" height="2" fill="#fff3b0"/></svg>
+          <h3>Minijogos</h3>
+          <p>Corrida de barcos, caça ao tesouro e batalhas de construção. Prêmios em moedas todo sábado.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="regras" style="background:color-mix(in srgb,var(--surface) 45%,var(--bg))">
+    <div class="wrap">
+      <h2>Regras da comunidade</h2>
+      <p class="sub">Poucas regras, para todo mundo jogar em paz.</p>
+      <ul class="rules">
+        <li>Respeite os outros jogadores, dentro e fora do chat.</li>
+        <li>Peça permissão antes de mexer na construção de alguém.</li>
+        <li>Denuncie bugs à equipe em vez de aproveitá-los.</li>
+        <li class="no">Não use hacks, x-ray ou mods que deem vantagem.</li>
+        <li class="no">Não faça griefing, spam ou divulgação de outros servidores.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="entrar" class="band">
+    <div class="wrap">
+      <h2>Como entrar</h2>
+      <p class="sub">Leva menos de um minuto.</p>
+      <ol class="steps">
+        <li><div><b>Abra o Minecraft Java Edition</b>Use a versão 1.21 ou mais recente.</div></li>
+        <li><div><b>Vá em Multijogador e adicione um servidor</b>Toque em “Adicionar servidor”.</div></li>
+        <li><div><b>Cole o endereço</b><span id="ip2">jogar.valecubico.com.br</span></div></li>
+        <li><div><b>Conecte e use /registrar</b>Crie sua senha e comece em Survival.</div></li>
+      </ol>
+      <p style="margin-top:26px"><button class="btn" id="copy2" type="button">Copiar IP</button></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Vale Cúbico é um projeto de fãs e não tem relação com a Mojang Studios nem com a Microsoft. Minecraft é marca registrada da Mojang Studios.
+</footer>
+
+<script>
+(function(){
+  // ---- Copiar IP ----
+  var IP = "jogar.valecubico.com.br";
+  function copy(btn){
+    var done = function(msg){ var o = btn.textContent; btn.textContent = msg; setTimeout(function(){ btn.textContent = "Copiar IP"; }, 1800); };
+    try {
+      navigator.clipboard.writeText(IP).then(function(){ done("IP copiado"); }, function(){ done("Copie manualmente"); });
+    } catch (e) { done("Copie manualmente"); }
+  }
+  ["copy","copy2"].forEach(function(id){ var b = document.getElementById(id); b.addEventListener("click", function(){ copy(b); }); });
+
+  // ---- Dia / noite ----
+  var hero = document.getElementById("hero");
+  document.getElementById("sky").addEventListener("click", function(){
+    hero.dataset.sky = hero.dataset.sky === "day" ? "night" : "day";
+  });
+
+  // ---- Terreno interativo ----
+  var cv = document.getElementById("world"), ctx = cv.getContext("2d");
+  var COLS = 80, ROWS = 8, CELL = 32, T = {AIR:0, GRASS:1, DIRT:2, STONE:3, COAL:4, GOLD:5, DIAMOND:6};
+  var grid = [], broken = 0, countEl = document.getElementById("count");
+  function hash(x, y){ var n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); }
+
+  (function build(){
+    var h = 3;
+    for (var c = 0; c < COLS; c++){
+      var r = hash(c, 9);
+      if (r < .3 && h > 2) h--; else if (r > .7 && h < 5) h++;
+      var col = [];
+      for (var y = 0; y < ROWS; y++){
+        var t;
+        if (y < h) t = T.AIR;
+        else if (y === h) t = T.GRASS;
+        else if (y <= h + 2) t = T.DIRT;
+        else {
+          var o = hash(c, y);
+          t = o > .93 ? T.DIAMOND : o > .87 ? T.GOLD : o > .74 ? T.COAL : T.STONE;
+        }
+        col.push(t);
+      }
+      grid.push(col);
+    }
+  })();
+
+  var base = {1:"#6b4630", 2:"#6b4630", 3:"#7d7d7d", 4:"#7d7d7d", 5:"#7d7d7d", 6:"#7d7d7d"};
+  var ore = {4:"#1e1e1e", 5:"#f2c230", 6:"#3cd6d0"};
+
+  function drawCell(c, r){
+    var t = grid[c][r], x = c * CELL, y = r * CELL, p = CELL / 4, i, j, v;
+    ctx.clearRect(x, y, CELL, CELL);
+    if (t === T.AIR) return;
+    ctx.fillStyle = base[t]; ctx.fillRect(x, y, CELL, CELL);
+    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++){
+      v = hash(c * 4 + i, r * 4 + j);
+      if (v < .3){ ctx.fillStyle = "rgba(0,0,0,.14)"; ctx.fillRect(x + i * p, y + j * p, p, p); }
+      else if (v > .8){ ctx.fillStyle = "rgba(255,255,255,.09)"; ctx.fillRect(x + i * p, y + j * p, p, p); }
+    }
+    if (t === T.GRASS){
+      ctx.fillStyle = "#4f9a2f"; ctx.fillRect(x, y, CELL, p * 1.5);
+      ctx.fillStyle = "#3f8227";
+      for (i = 0; i < 4; i++) if (hash(c * 4 + i, 77) > .5) ctx.fillRect(x + i * p, y + p * 1.5, p, p * .75);
+    }
+    if (ore[t]){
+      ctx.fillStyle = ore[t];
+      for (i = 0; i < 4; i++) for (j = 0; j < 4; j++)
+        if (hash(c * 4 + i + 5, r * 4 + j + 11) > .72) ctx.fillRect(x + i * p, y + j * p, p, p);
+    }
+    ctx.strokeStyle = "rgba(0,0,0,.22)"; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+  }
+
+  function setup(){
+    var w = cv.parentElement.clientWidth;
+    cv.width = Math.ceil(w / CELL) * CELL;   // largura em múltiplos do bloco
+    cv.height = ROWS * CELL;
+    cv.style.width = cv.width + "px";
+    cv.style.maxWidth = "none";
+    for (var c = 0; c < Math.ceil(cv.width / CELL) && c < COLS; c++)
+      for (var r = 0; r < ROWS; r++) drawCell(c, r);
+  }
+  setup();
+  var rt; window.addEventListener("resize", function(){ clearTimeout(rt); rt = setTimeout(setup, 120); });
+
+  function hit(e){
+    var rect = cv.getBoundingClientRect();
+    var sx = cv.width / rect.width, sy = cv.height / rect.height;
+    var c = Math.floor((e.clientX - rect.left) * sx / CELL);
+    var r = Math.floor((e.clientY - rect.top) * sy / CELL);
+    if (!grid[c] || grid[c][r] === undefined || grid[c][r] === T.AIR) return;
+    grid[c][r] = T.AIR; drawCell(c, r);
+    broken++; countEl.textContent = "Blocos: " + broken;
+  }
+  cv.addEventListener("pointerdown", hit);
+})();
+</script>
+</body>
+</html>
